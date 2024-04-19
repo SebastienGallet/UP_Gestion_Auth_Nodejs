@@ -3,6 +3,8 @@ const express = require('express');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const app = express();
+require('dotenv').config();
+
 
 app.use(express.json()); // Pour parser les requêtes JSON
 
@@ -37,3 +39,30 @@ function findUserByUsername(username) {
 function validatePassword(user, password) {
     return user.password === password;
 }
+
+app.post('/login', (req, res, next) => {
+  passport.authenticate('local', (err, user, info) => {
+      if (err) return next(err);
+      if (!user) return res.status(400).json({ message: info.message });
+      
+      // Utilisateur authentifié, générer un token avec le rôle inclus
+      const token = jwt.sign({ username: user.username, role: user.role }, process.env.ACCESS_TOKEN_SECRET);
+      res.json({ accessToken: token });
+  })(req, res, next);
+});
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token == null) return res.sendStatus(401);
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) return res.sendStatus(403);
+    req.user = decoded; // decoded token inclut désormais le rôle de l'utilisateur
+    next();
+  });
+}
+
+app.get('/protected', authenticateToken, roleAuthorization(['admin']), (req, res) => {
+  res.json({ message: "Vous êtes authentifié et avez accès à cette zone protégée en tant qu'admin." });
+});
