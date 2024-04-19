@@ -30,6 +30,7 @@ const users = [
   { id: 1, username: "admin", password: "admin", role: "admin" },  // mot de passe doit être sécurisé dans une vraie appli
   { id: 2, username: "user", password: "user", role: "user" }
 ];
+const roles = ["admin", "editor", "user"];
 
 
 function findUserByUsername(username) {
@@ -66,3 +67,31 @@ function authenticateToken(req, res, next) {
 app.get('/protected', authenticateToken, roleAuthorization(['admin']), (req, res) => {
   res.json({ message: "Vous êtes authentifié et avez accès à cette zone protégée en tant qu'admin." });
 });
+
+function roleAuthorization(rolesAllowed) {
+  return function(req, res, next) {
+    const userRole = req.user.role;
+    if (rolesAllowed.includes(userRole)) {
+      next();
+    } else {
+      res.status(403).json({message: "Accès refusé : Vous n'avez pas les droits nécessaires pour cette action."});
+    }
+  }
+}
+
+app.get('/protected', authenticateToken, roleAuthorization(['admin']), (req, res) => {
+  res.json({ message: "Vous êtes authentifié et avez accès à cette zone protégée en tant qu'admin." });
+});
+
+
+// Exemple de middleware HTTPS forcé
+app.use((req, res, next) => {
+  if (req.secure) {
+    next();
+  } else {
+    res.redirect('https://' + req.headers.host + req.url);
+  }
+});
+
+// Exemple de gestion sécurisée des secrets avec dotenv
+console.log(process.env.SECRET);  // Accéder à un secret sécurisé
